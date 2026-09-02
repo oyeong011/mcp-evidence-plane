@@ -28,6 +28,8 @@ export type ToolSpec = {
   readonly minimumClearance: number;
   /** Fields stripped from a result before it reaches the caller. */
   readonly sensitiveFields: readonly string[];
+  /** The only fields returned when the caller is below the required clearance. */
+  readonly downgradeFields: readonly string[];
 };
 
 function spec(partial: Partial<ToolSpec> & { name: string }): ToolSpec {
@@ -37,13 +39,19 @@ function spec(partial: Partial<ToolSpec> & { name: string }): ToolSpec {
     requiresApproval: false,
     minimumClearance: 0,
     sensitiveFields: [],
+    downgradeFields: [],
     ...partial,
   };
 }
 
 export const CATALOG: Readonly<Record<string, ToolSpec>> = Object.freeze({
   "twin.read_scenario": spec({ name: "twin.read_scenario" }),
-  "twin.read_topology": spec({ name: "twin.read_topology", minimumClearance: 2 }),
+  "twin.read_topology": spec({
+    name: "twin.read_topology",
+    minimumClearance: 2,
+    // A viewer learns that a topology exists, never how it is wired.
+    downgradeFields: ["topologyId"],
+  }),
   "twin.read_alarms": spec({
     name: "twin.read_alarms",
     minimumClearance: 1,
