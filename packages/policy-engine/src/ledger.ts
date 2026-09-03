@@ -2,42 +2,79 @@
  * Append-only evidence ledger.
  *
  * Each entry commits to the previous head, so any edit to a recorded decision
- * breaks every hash after it. The ledger proves what was decided; it never
- * decides anything itself.
+ * breaks every hash after it. The ledger proves what was decided and on what
+ * inputs; it never decides anything itself.
+ *
+ * Arguments are recorded as a hash. They may carry identifiers or secrets, and
+ * the policy never reads them, so keeping the hash preserves provenance while
+ * keeping the content out of the record.
  */
 
 import { createHash } from "node:crypto";
 
+import type { ToolCall } from "./catalog.ts";
 import type { DecisionResult } from "./policy.ts";
 
 export const GENESIS = "0".repeat(64);
 
-type Entry = {
-  decision: DecisionResult;
-  hash: string;
+export type RecordedCall = {
+  readonly toolName: string;
+  readonly callerId: string | null;
+  readonly clearance: number | null;
+  readonly argsHash: string;
+  readonly hasSimulationEvidence: boolean;
+  readonly hasApprovalEvidence: boolean;
 };
 
-function canonical(decision: DecisionResult): string {
-  return JSON.stringify([
-    decision.toolName,
-    decision.callerId,
-    decision.decision,
-    [...decision.reasons],
-    [...decision.redactFields],
-  ]);
+export type LedgerEntry = {
+  readonly call: RecordedCall;
+  readonly decision: DecisionResult;
+  readonly hash: string;
+};
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
 }
 
-function link(previous: string, decision: DecisionResult): string {
-  return createHash("sha256").update(previous).update("\0").update(canonical(decision)).digest("hex");
+function sha256(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+export function recordCall(call: ToolCall): RecordedCall {
+  return {
+    toolName: call.toolName,
+    callerId: call.caller?.id ?? null,
+    clearance: call.caller?.clearance ?? null,
+    argsHash: sha256(canonicalJson(call.args)),
+    hasSimulationEvidence: call.hasSimulationEvidence,
+    hasApprovalEvidence: call.hasApprovalEvidence,
+  };
+}
+
+function link(previous: string, call: RecordedCall, decision: DecisionResult): string {
+  return sha256(`${previous}\0${canonicalJson(call)}\0${canonicalJson(decision)}`);
 }
 
 export class EvidenceLedger {
-  readonly #entries: Entry[] = [];
+  readonly #entries: LedgerEntry[] = [];
 
-  append(decision: DecisionResult): string {
-    const hash = link(this.head(), decision);
-    this.#entries.push({ decision, hash });
+  append(call: ToolCall, decision: DecisionResult): string {
+    const recorded = recordCall(call);
+    const hash = link(this.head(), recorded, decision);
+    this.#entries.push({ call: recorded, decision, hash });
     return hash;
+  }
+
+  entries(): readonly LedgerEntry[] {
+    return this.#entries;
   }
 
   head(): string {
@@ -51,7 +88,7 @@ export class EvidenceLedger {
   verify(): boolean {
     let previous = GENESIS;
     for (const entry of this.#entries) {
-      if (link(previous, entry.decision) !== entry.hash) {
+      if (link(previous, entry.call, entry.decision) !== entry.hash) {
         return false;
       }
       previous = entry.hash;

@@ -52,7 +52,7 @@ export class Gateway {
     execute: (call: ToolCall) => Promise<ToolResult>,
   ): Promise<Outcome> {
     const decision = decide(call);
-    this.#ledger.append(decision);
+    this.#ledger.append(call, decision);
     if (decision.decision === Decision.Deny || decision.decision === Decision.RequireApproval) {
       return { decision, result: null, failed: false };
     }

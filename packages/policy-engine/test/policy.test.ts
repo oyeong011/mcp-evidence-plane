@@ -60,8 +60,10 @@ test("a fully cleared read is allowed", () => {
 
 test("the ledger chains entries so tampering is detectable", () => {
   const ledger = new EvidenceLedger();
-  ledger.append(decide(call({ toolName: "twin.read_scenario" })));
-  ledger.append(decide(call({ toolName: "twin.read_alarms" })));
+  const first = call({ toolName: "twin.read_scenario" });
+  const second = call({ toolName: "twin.read_alarms" });
+  ledger.append(first, decide(first));
+  ledger.append(second, decide(second));
   assert.equal(ledger.verify(), true);
   ledger.tamperForTest(0, "allow-everything");
   assert.equal(ledger.verify(), false);
@@ -70,6 +72,7 @@ test("the ledger chains entries so tampering is detectable", () => {
 test("the ledger head changes when an entry is appended", () => {
   const ledger = new EvidenceLedger();
   const before = ledger.head();
-  ledger.append(decide(call({ toolName: "twin.read_scenario" })));
+  const only = call({ toolName: "twin.read_scenario" });
+  ledger.append(only, decide(only));
   assert.notEqual(ledger.head(), before);
 });

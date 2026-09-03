@@ -4,6 +4,10 @@
  * The same call always yields the same decision and the same ordered reasons,
  * so a decision can be replayed from the ledger and compared byte for byte.
  * Every unrecognised condition resolves to Deny.
+ *
+ * A decision depends on the tool, the caller, and the two evidence flags. It
+ * never depends on the arguments, which is what lets the ledger keep only a
+ * hash of them and still replay every decision exactly.
  */
 
 import { CATALOG, type ToolCall, type ToolSpec } from "./catalog.ts";
@@ -25,6 +29,8 @@ export type DecisionResult = {
   readonly reasons: readonly string[];
   readonly redactFields: readonly string[];
 };
+
+export type Catalog = Readonly<Record<string, ToolSpec>>;
 
 function result(
   call: ToolCall,
@@ -52,8 +58,8 @@ function approvalReasons(call: ToolCall, tool: ToolSpec): readonly string[] {
   return reasons;
 }
 
-export function decide(call: ToolCall): DecisionResult {
-  const tool = Object.hasOwn(CATALOG, call.toolName) ? CATALOG[call.toolName] : undefined;
+export function decide(call: ToolCall, catalog: Catalog = CATALOG): DecisionResult {
+  const tool = Object.hasOwn(catalog, call.toolName) ? catalog[call.toolName] : undefined;
   if (tool === undefined) {
     return result(call, Decision.Deny, ["unknown-tool"]);
   }
