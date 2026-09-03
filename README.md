@@ -12,7 +12,7 @@ those tools at all.
 
 ## Status — read this before judging scope
 
-Implemented and tested (18 tests, `npm test`):
+Implemented and tested (23 tests, `npm test`):
 
 - the deterministic policy engine and its five decisions
 - the closed tool catalog, including the mutating tool that exists to prove the
@@ -23,6 +23,9 @@ Implemented and tested (18 tests, `npm test`):
   what the caller's clearance allows, and every call is recorded whether it ran
   or not
 - the approval flow, run end to end through the real engine
+- trace replay: every recorded decision is re-derived from its recorded inputs
+  and compared to the record, so a policy change since then shows up as a
+  divergence at the exact entry
 
 Not implemented: the Fastify MCP transport, the Postgres-backed registry, the
 React audit dashboard, the replay/evaluator worker, Docker Compose, CI, and any
@@ -77,6 +80,14 @@ in order and the chain still verifies.
 This exercises the plane's half of the contract. It does not call a running
 Twin, so it is not the cross-repo integration, and the test says so in its own
 header.
+
+## What the ledger records
+
+Each entry holds the decision and the inputs it was made from: tool, caller and
+clearance, both evidence flags, and a hash of the arguments. The policy never
+reads arguments, so the hash keeps provenance while keeping content that may
+carry identifiers or secrets out of the record. Entries chain by hash; replay
+refuses a ledger whose chain does not verify.
 
 ## Run it
 
