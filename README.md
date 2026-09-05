@@ -1,6 +1,6 @@
 # MCP Evidence Plane
 
-> **한국어 요약** — 에이전트의 도구 호출을 통제하고 증거로 남기는 결정 코어입니다. 모든 호출을 닫힌 카탈로그에 대조해 분류하고, 결정론적 정책 엔진이 `allow / deny / redact / require_approval / downgrade` 다섯 결정 중 하나를 고정된 순서로 내리며, 해시 체인 원장에 기록합니다. 변형(mutating) 도구는 시뮬레이션·승인 증거를 완비해도 **무조건 거부**됩니다 — 승인은 자격을 기록할 뿐 집행이 아닙니다. 리플레이는 기록된 입력으로 모든 결정을 재도출해 현재 정책과 바이트 단위로 대조하므로, 정책이 바뀌면 어느 항목이 달라지는지 정확히 드러납니다. 런타임 의존성 0, `npm test`로 29개 테스트. **실제 Twin 프로세스를 자식으로 띄워 도구 7개를 전부 게이트웨이 너머로 호출하는 통합 테스트**가 포함되며, CI는 vendoring된 계약이 가리키는 Twin 커밋을 그대로 체크아웃해 이를 실행합니다. 시뮬레이션 증거는 호출자가 주장하는 것이 아니라 Plane이 Twin의 `approval_eligible: true`를 직접 본 뒤에만 인정합니다. **미구현**: 호출자 쪽 인바운드 트랜스포트·DB·대시보드·배포.
+> **한국어 요약** — 에이전트의 도구 호출을 통제하고 증거로 남기는 결정 코어입니다. 모든 호출을 닫힌 카탈로그에 대조해 분류하고, 결정론적 정책 엔진이 `allow / deny / redact / require_approval / downgrade` 다섯 결정 중 하나를 고정된 순서로 내리며, 해시 체인 원장에 기록합니다. 변형(mutating) 도구는 시뮬레이션·승인 증거를 완비해도 **무조건 거부**됩니다 — 승인은 자격을 기록할 뿐 집행이 아닙니다. 리플레이는 기록된 입력으로 모든 결정을 재도출해 현재 정책과 바이트 단위로 대조하므로, 정책이 바뀌면 어느 항목이 달라지는지 정확히 드러납니다. 런타임 의존성 0, `npm test`로 29개 테스트. **실제 Twin 프로세스를 자식으로 띄워 도구 7개를 전부 게이트웨이 너머로 호출하는 통합 테스트**가 포함되며, CI는 vendoring된 계약이 가리키는 Twin 커밋을 그대로 체크아웃해 이를 실행합니다. 시뮬레이션 증거는 호출자가 주장하는 것이 아니라 Plane이 Twin의 `approval_eligible: true`를 직접 본 뒤에만 인정합니다. 이제 Plane은 **MCP 서버**이기도 합니다 — 클라이언트는 Plane에만 말하고 Twin은 Plane 뒤에 있습니다. **미구현**: 호출자 인증(현재는 실행 환경에서 신원을 받음)·DB·대시보드·배포.
 
 A governed proxy for agent tool calls. Every call is classified against a closed
 catalog, decided by a deterministic policy engine, and committed to an
@@ -14,7 +14,7 @@ those tools at all.
 
 ## Status — read this before judging scope
 
-Implemented and tested (29 tests, `npm test`):
+Implemented and tested (31 tests, `npm test`):
 
 - the deterministic policy engine and its five decisions
 - the closed tool catalog, including the mutating tool that exists to prove the
@@ -34,11 +34,16 @@ Implemented and tested (29 tests, `npm test`):
 - the Twin's tool contract, vendored byte for byte with a lock naming the Twin
   commit it came from; a test refuses any edit here without a lock update, and
   CI runs the integration against that exact pinned commit
+- **the plane as an MCP server** (`serve.ts`): a client speaks newline-delimited
+  JSON-RPC to the plane and never to the Twin. Only governed tools are
+  advertised, the mutating decoy is never listed, a refusal comes back as a
+  JSON-RPC error carrying the decision and its ordered reasons, and an allowed
+  answer carries a `_plane` block naming the decision that let it through
 
-Not implemented: an inbound MCP transport for callers (the plane currently acts
-as an MCP client to the Twin, not as a server), the Postgres-backed registry,
-the React audit dashboard, the evaluator worker, Docker Compose, and any cloud
-deployment. Those need credentials and carry billing risk, so they are
+Not implemented: caller authentication (identity is taken from the launching
+environment, which is fine for a local proxy and not for anything shared), the
+Postgres-backed registry, the React audit dashboard, the evaluator worker,
+Docker Compose, and any cloud deployment. Those need credentials and carry billing risk, so they are
 gated on an explicit human decision rather than assumed.
 
 No number in this README comes from anywhere but `npm test`.
@@ -114,6 +119,8 @@ refuses a ledger whose chain does not verify.
 
 ```bash
 npm test
+TWIN_REPO=/path/to/telco-counterfactual-twin PLANE_CALLER_ID=operator-1 PLANE_CALLER_CLEARANCE=2 \
+  node packages/policy-engine/src/serve.ts   # then speak MCP JSON-RPC on stdin
 ```
 
 Node 24 or newer runs the TypeScript sources directly. The engine has no runtime
