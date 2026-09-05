@@ -1,5 +1,7 @@
 # MCP Evidence Plane
 
+> **한국어 요약** — 에이전트의 도구 호출을 통제하고 증거로 남기는 결정 코어입니다. 모든 호출을 닫힌 카탈로그에 대조해 분류하고, 결정론적 정책 엔진이 `allow / deny / redact / require_approval / downgrade` 다섯 결정 중 하나를 고정된 순서로 내리며, 해시 체인 원장에 기록합니다. 변형(mutating) 도구는 시뮬레이션·승인 증거를 완비해도 **무조건 거부**됩니다 — 승인은 자격을 기록할 뿐 집행이 아닙니다. 리플레이는 기록된 입력으로 모든 결정을 재도출해 현재 정책과 바이트 단위로 대조하므로, 정책이 바뀌면 어느 항목이 달라지는지 정확히 드러납니다. 런타임 의존성 0, `npm test`로 23개 테스트. **미구현**: 트랜스포트·DB·대시보드·배포 — 자격증명과 과금 승인이 필요해 사람 결정에 묶어뒀습니다.
+
 A governed proxy for agent tool calls. Every call is classified against a closed
 catalog, decided by a deterministic policy engine, and committed to an
 append-only evidence ledger that makes later tampering detectable.
