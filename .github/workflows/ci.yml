@@ -46,10 +46,11 @@ jobs:
           version: "0.11.6"
       - name: Sync the Twin backend at the pinned commit
         run: uv sync --project twin/backend --python 3.12 --locked
-      - name: Run the live integration against the pinned Twin
+      - name: Run the live integration and the server tests against the pinned Twin
         env:
           TWIN_REPO: ${{ github.workspace }}/twin
         run: |
-          node --test packages/policy-engine/test/twin-integration.test.ts 2>&1 | tee integration.log
+          node --test packages/policy-engine/test/twin-integration.test.ts packages/policy-engine/test/serve.test.ts 2>&1 | tee integration.log
+          grep -q "^ℹ tests 3" integration.log
           grep -q "^ℹ skipped 0" integration.log
           grep -q "^ℹ fail 0" integration.log
