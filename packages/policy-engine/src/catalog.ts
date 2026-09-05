@@ -1,9 +1,13 @@
 /**
  * The closed tool catalog the proxy is willing to describe.
  *
- * A tool absent from this catalog cannot be reached: the gateway fails closed
- * rather than forwarding a call it cannot classify. Mutating tools are listed
- * so the ban on execution authority is enforced explicitly, not by omission.
+ * Names are the Twin's own, from the vendored contract; a contract test keeps
+ * the two sets equal. A tool absent from this catalog cannot be reached: the
+ * gateway fails closed rather than forwarding a call it cannot classify.
+ *
+ * `twin.apply_patch` is the one name the Twin does not export. It is listed so
+ * the ban on execution authority is enforced explicitly and can be tested,
+ * instead of holding only because nobody happened to add such a tool.
  */
 
 export type Caller = {
@@ -45,22 +49,22 @@ function spec(partial: Partial<ToolSpec> & { name: string }): ToolSpec {
 }
 
 export const CATALOG: Readonly<Record<string, ToolSpec>> = Object.freeze({
-  "twin.read_scenario": spec({ name: "twin.read_scenario" }),
-  "twin.read_topology": spec({
-    name: "twin.read_topology",
-    minimumClearance: 2,
-    // A viewer learns that a topology exists, never how it is wired.
-    downgradeFields: ["topologyId"],
-  }),
-  "twin.read_alarms": spec({
-    name: "twin.read_alarms",
+  list_scenarios: spec({ name: "list_scenarios" }),
+  get_scenario: spec({
+    name: "get_scenario",
     minimumClearance: 1,
-    // Alarm prose is attacker-controlled text and never reaches a model verbatim.
-    sensitiveFields: ["message"],
+    // A viewer learns that a scenario exists, never its hashes or target.
+    downgradeFields: ["scenario_id"],
   }),
-  "twin.run_counterfactual": spec({ name: "twin.run_counterfactual", minimumClearance: 1 }),
-  "twin.request_approval": spec({
-    name: "twin.request_approval",
+  // The Twin's tools return evidence identifiers and hashes, never alarm prose,
+  // so no Twin tool carries a sensitive field today. The redaction path is kept
+  // and unit-tested against an injected catalog for the day one does.
+  diagnose_scenario: spec({ name: "diagnose_scenario", minimumClearance: 1 }),
+  propose_patch: spec({ name: "propose_patch", minimumClearance: 2 }),
+  simulate_patch: spec({ name: "simulate_patch", minimumClearance: 1 }),
+  compare_runs: spec({ name: "compare_runs", minimumClearance: 1 }),
+  request_approval: spec({
+    name: "request_approval",
     requiresSimulation: true,
     requiresApproval: true,
     minimumClearance: 2,

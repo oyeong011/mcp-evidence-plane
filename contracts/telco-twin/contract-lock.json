@@ -1,0 +1,8 @@
+{
+  "upstream": "https://github.com/oyeong011/telco-counterfactual-twin",
+  "path": "artifacts/contracts/mcp-tools.json",
+  "source_commit_sha": "8201cdc8b7edb56ab015e088c74125d10036a1c8",
+  "sha256": "de2e03d3e2a72d4fde98438b38bf98461ca23283c9fedee9cc6bef12278de6f9",
+  "vendored_at": "2026-09-06",
+  "note": "Copied verbatim from the Twin's generated contract. Never edited here; refresh by re-copying and updating this lock."
+}

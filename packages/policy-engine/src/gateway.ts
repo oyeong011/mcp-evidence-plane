@@ -11,7 +11,7 @@
 import type { ToolCall } from "./catalog.ts";
 import { CATALOG } from "./catalog.ts";
 import type { EvidenceLedger } from "./ledger.ts";
-import { Decision, decide, type DecisionResult } from "./policy.ts";
+import { Decision, decide, type Catalog, type DecisionResult } from "./policy.ts";
 
 export type ToolResult = Record<string, unknown>;
 
@@ -42,16 +42,18 @@ function omit(result: ToolResult, fields: readonly string[]): ToolResult {
 
 export class Gateway {
   readonly #ledger: EvidenceLedger;
+  readonly #catalog: Catalog;
 
-  constructor(ledger: EvidenceLedger) {
+  constructor(ledger: EvidenceLedger, catalog: Catalog = CATALOG) {
     this.#ledger = ledger;
+    this.#catalog = catalog;
   }
 
   async handle(
     call: ToolCall,
     execute: (call: ToolCall) => Promise<ToolResult>,
   ): Promise<Outcome> {
-    const decision = decide(call);
+    const decision = decide(call, this.#catalog);
     this.#ledger.append(call, decision);
     if (decision.decision === Decision.Deny || decision.decision === Decision.RequireApproval) {
       return { decision, result: null, failed: false };
@@ -68,7 +70,7 @@ export class Gateway {
   }
 
   #project(call: ToolCall, decision: DecisionResult, raw: ToolResult): ToolResult {
-    const tool = CATALOG[call.toolName];
+    const tool = this.#catalog[call.toolName];
     switch (decision.decision) {
       case Decision.Redact:
         return omit(raw, decision.redactFields);

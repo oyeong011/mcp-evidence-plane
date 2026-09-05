@@ -22,3 +22,34 @@ jobs:
         run: |
           test ! -d node_modules
           node -e 'const p=require("./package.json"); if (p.dependencies && Object.keys(p.dependencies).length) { console.error("runtime dependencies present"); process.exit(1) }'
+
+  # The cross-repository proof runs against the real Twin, checked out at the
+  # commit the vendored contract was taken from. The policy-core job above skips
+  # this test; here it must run, and a skip is a failure.
+  twin-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+      - name: Read the pinned Twin commit from the contract lock
+        id: lock
+        run: echo "sha=$(node -p 'require("./contracts/telco-twin/contract-lock.json").source_commit_sha')" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: oyeong011/telco-counterfactual-twin
+          ref: ${{ steps.lock.outputs.sha }}
+          path: twin
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.6"
+      - name: Sync the Twin backend at the pinned commit
+        run: uv sync --project twin/backend --python 3.12 --locked
+      - name: Run the live integration against the pinned Twin
+        env:
+          TWIN_REPO: ${{ github.workspace }}/twin
+        run: |
+          node --test packages/policy-engine/test/twin-integration.test.ts 2>&1 | tee integration.log
+          grep -q "^ℹ skipped 0" integration.log
+          grep -q "^ℹ fail 0" integration.log

@@ -41,21 +41,21 @@ test("a patch cannot advance at any point in the approval flow", async () => {
   assert.equal(premature.decision.decision, Decision.Deny);
 
   // Asking for approval with nothing simulated.
-  const unproven = await run(step("twin.request_approval", noEvidence));
+  const unproven = await run(step("request_approval", noEvidence));
   assert.equal(unproven.decision.decision, Decision.RequireApproval);
   assert.ok(unproven.decision.reasons.includes("missing-simulation-evidence"));
 
   // The simulation itself is allowed; that is how evidence comes to exist.
-  const simulated = await run(step("twin.run_counterfactual", simulatedOnly));
+  const simulated = await run(step("simulate_patch", simulatedOnly));
   assert.equal(simulated.decision.decision, Decision.Allow);
 
   // Simulated, but nobody has approved yet.
-  const unapproved = await run(step("twin.request_approval", simulatedOnly));
+  const unapproved = await run(step("request_approval", simulatedOnly));
   assert.equal(unapproved.decision.decision, Decision.RequireApproval);
   assert.ok(unapproved.decision.reasons.includes("missing-approval-evidence"));
 
   // Both kinds of evidence present: the approval request itself may proceed.
-  const eligible = await run(step("twin.request_approval", fullEvidence));
+  const eligible = await run(step("request_approval", fullEvidence));
   assert.equal(eligible.decision.decision, Decision.Allow);
 
   // And still the patch does not apply. Approval records eligibility, never execution.

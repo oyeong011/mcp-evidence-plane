@@ -11,7 +11,7 @@ const operator = { id: "operator-1", clearance: 2 } as const;
 
 function call(overrides: Partial<ToolCall> = {}): ToolCall {
   return {
-    toolName: "twin.read_scenario",
+    toolName: "list_scenarios",
     caller: operator,
     args: {},
     hasSimulationEvidence: true,
@@ -26,8 +26,8 @@ async function recordedLedger(): Promise<EvidenceLedger> {
   const run = async (c: ToolCall) => gateway.handle(c, async () => ({ ok: true }));
   await run(call());
   await run(call({ toolName: "twin.apply_patch" }));
-  await run(call({ toolName: "twin.read_alarms" }));
-  await run(call({ toolName: "twin.request_approval", hasApprovalEvidence: false }));
+  await run(call({ toolName: "diagnose_scenario" }));
+  await run(call({ toolName: "request_approval", hasApprovalEvidence: false }));
   return ledger;
 }
 
@@ -42,7 +42,7 @@ test("a policy change since the record shows up as a divergence at the right ent
   const ledger = await recordedLedger();
   const stricter: Record<string, ToolSpec> = {
     ...CATALOG,
-    "twin.read_scenario": { ...CATALOG["twin.read_scenario"]!, minimumClearance: 5 },
+    "list_scenarios": { ...CATALOG["list_scenarios"]!, minimumClearance: 5 },
   };
   const report = replay(ledger, stricter);
   assert.equal(report.divergences.length, 1);
